@@ -615,7 +615,7 @@ class Socket:
         self.output = []
         
     def sendPacket(self, data):
-        header = '!!!' + struct.pack('l', len(data))
+        header = '!!!' + struct.pack('=l', len(data))
         self.output.append(header)
         self.output.append(data)
 
@@ -635,8 +635,11 @@ class Socket:
                 return None
         if header[:3] != '!!!':
             raise Exception('Network data corruption.')
-        dataLen = struct.unpack('l', header[3:])[0]
-        #print "readPacket: packet size:", dataLen
+        try:
+            dataLen = struct.unpack('=l', header[3:])[0]
+        except:            
+            print len(header)
+            raise
         
         packet = self.input.read(7+dataLen)
         if packet is None:
@@ -844,19 +847,19 @@ class NetworkThread(QtCore.QThread):
         ## parse a packet, return any data that should be transferred to the application
         if packet == 'i?':  ## ID requested
             if self.server is None:
-                socket.sendPacket("i:" + struct.pack('l', self.nextId))
+                socket.sendPacket("i:" + struct.pack('=l', self.nextId))
                 self.nextId += 1
             else:
                 self.requestID(socket)  ## forward ID request upstream
         elif packet[:2] == 'i:':  ## ID received
             recip = self.idRequests.pop(0)
-            uid = struct.unpack('l', packet[2:])[0]
+            uid = struct.unpack('=l', packet[2:])[0]
             if recip == self:
                 self.setId(uid)
             else:
                 recip.sendPacket(packet)  ## forward ID request downstream
         elif packet[:2] == 'n:':  ## someone has declared their name. Cache the data and forward upstream.
-            uid = struct.unpack('l', packet[2:6])[0]
+            uid = struct.unpack('=l', packet[2:6])[0]
             name = packet[6:]
             self.names[uid] = name
             if self.server is not None:
@@ -894,12 +897,12 @@ class NetworkThread(QtCore.QThread):
         with self.lock:
             self.id = uid
         if self.name is not None:
-            self.server.sendPacket('n:' + struct.pack('l', uid) + self.name)  ## inform server of our name
+            self.server.sendPacket('n:' + struct.pack('=l', uid) + self.name)  ## inform server of our name
 
     def receiveStrokes(self, packet):  ## called when a packet is received with new strokes in it
         formats = {
-            's': '2L6d3B',
-            'd': '3L'
+            's': '=2L6d3B',
+            'd': '=3L'
         }
         strokes = []
         #print "parse:"
@@ -924,8 +927,8 @@ class NetworkThread(QtCore.QThread):
             return
         #print "Sending %d strokes to" % len(strokes), sockets
         formats = {
-            's': '2L6d3B',
-            'd': '3L'
+            's': '=2L6d3B',
+            'd': '=3L'
         }
         #print "send %d strokes" % len(strokes)
         packet = ["s:"]
