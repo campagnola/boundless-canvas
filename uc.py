@@ -660,7 +660,7 @@ class Socket:
             try:
                 data = self.socket.recv(4096)
             except socket.error as err:  
-                if err.errno == 11:  ## an error here may just indicate there is nothing to receive on the socket.
+                if err.errno == 11 or err.errno == 10035:  ## an error here may just indicate there is nothing to receive on the socket.
                     return
                 elif err.errno == 35:  ## socket temporarily unavailable; ignore
                     return
